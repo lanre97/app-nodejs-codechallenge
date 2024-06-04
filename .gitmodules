@@ -1,3 +1,0 @@
-[submodule "antifraud-service"]
-    path = ./antifraud-service
-    url = https://github.com/lanre97/antifraud-service.git
