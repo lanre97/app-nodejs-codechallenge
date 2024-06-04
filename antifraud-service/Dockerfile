@@ -20,4 +20,4 @@ RUN yarn build
 EXPOSE 3001
 
 # Comando para ejecutar la aplicación
-CMD ["yarn", "start:dev"]
+CMD ["yarn", "start:prod"]
