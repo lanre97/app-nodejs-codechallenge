@@ -1,12 +1,18 @@
-version: "3.7"
 services:
   postgres:
     image: postgres:14
     ports:
-      - "5432:5432"
+      - "5431:5432"
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=yape-reto
+  mongodb:
+    image: mongo:4.4
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
   zookeeper:
     image: confluentinc/cp-zookeeper:5.5.3
     environment:
@@ -23,3 +29,47 @@ services:
       KAFKA_JMX_PORT: 9991
     ports:
       - 9092:9092
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: "local-kafka"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka:29092"
+      KAFKA_CLUSTERS_0_ZOOKEEPER: "zookeeper:2181"
+      KAFKA_CLUSTERS_0_JMX_PORT: "9991"
+    depends_on:
+      - kafka
+  transaction-service:
+    build: ./transaction-service
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/yape-reto
+      - KAFKA_BROKER=kafka:29092
+      - PORT=3001
+    depends_on:
+      - postgres
+      - kafka
+      - mongodb
+    volumes:
+      - ./transaction-service:/usr/src/app
+      - /usr/src/app/node_modules
+      - /usr/src/app/dist
+
+  antifraud-service:
+    build: ./antifraud-service
+    ports:
+      - "3002:3002"
+    environment:
+      - KAFKA_BROKER=kafka:29092
+      - PORT=3002
+    depends_on:
+      - kafka
+    volumes:
+      - ./antifraud-service:/usr/src/app
+      - /usr/src/app/node_modules
+
+volumes:
+  postgres-data:
+  mongo-data:
