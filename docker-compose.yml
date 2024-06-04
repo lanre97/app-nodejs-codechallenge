@@ -1,18 +1,38 @@
 services:
   postgres:
-    image: postgres:14
+    image: bitnami/postgresql
     ports:
       - "5431:5432"
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=yape-reto
-  mongodb:
-    image: mongo:4.4
-    ports:
-      - "27017:27017"
+      - POSTGRESQL_PGAUDIT_LOG=READ,WRITE
+      - POSTGRESQL_LOG_HOSTNAME=true
+      - POSTGRESQL_REPLICATION_MODE=master
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_user
+      - POSTGRESQL_USERNAME=postgres
+      - POSTGRESQL_DATABASE=yape-reto
+      - POSTGRESQL_PASSWORD=postgres
+      - ALLOW_EMPTY_PASSWORD=yes
     volumes:
-      - mongo-data:/data/db
+      - postgres-data:/var/lib/postgresql/data
+      - ./db.sql:/docker-entrypoint-initdb.d/db.sql
+  postgres-replica:
+    image: bitnami/postgresql
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRESQL_PASSWORD=postgres
+      - POSTGRESQL_MASTER_HOST=postgres
+      - POSTGRESQL_PGAUDIT_LOG=READ
+      - POSTGRESQL_LOG_HOSTNAME=true
+      - POSTGRESQL_REPLICATION_MODE=slave
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_user
+      - POSTGRESQL_MASTER_PORT_NUMBER=5432
+      - ALLOW_EMPTY_PASSWORD=yes
+    depends_on:
+      - postgres
+    
   zookeeper:
     image: confluentinc/cp-zookeeper:5.5.3
     environment:
@@ -46,12 +66,12 @@ services:
       - "3001:3001"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/yape-reto
+      - DATABASE_URL_REPLICA=postgresql://repl_user:repl_user@postgres-replica:5432/yape-reto
       - KAFKA_BROKER=kafka:29092
       - PORT=3001
     depends_on:
       - postgres
       - kafka
-      - mongodb
     volumes:
       - ./transaction-service:/usr/src/app
       - /usr/src/app/node_modules
@@ -72,4 +92,4 @@ services:
 
 volumes:
   postgres-data:
-  mongo-data:
+  postgres-replica-data:
