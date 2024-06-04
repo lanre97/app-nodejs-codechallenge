@@ -8,7 +8,7 @@ La arquitectura está dividida en varios servicios, incluyendo:
 - **transaction-service**: Microservicio para la creación y recuperación de transacciones.
 - **antifraud-service**: Microservicio para la validación de transacciones.
 
-Cada uno de estos servicios se comunica a través de Kafka, lo que permite un procesamiento eficiente y desacoplado de los eventos de transacciones. Los servicios exponen endpoints GraphQL para interactuar con ellos. Además, se implementa una configuración de base de datos PostgreSQL con replicación, donde una base de datos actúa como principal para operaciones de escritura y la otra como réplica para operaciones de lectura, asegurando así alta disponibilidad y escalabilidad.
+Cada uno de estos servicios se comunica a través de Kafka. Los el servicio de transacciones expone GraphQL para interactuar con él. Además, se implementa una configuración de base de datos PostgreSQL con replicación, donde una base de datos actúa como principal para operaciones de escritura y la otra como réplica para operaciones de lectura, asegurando así alta disponibilidad y escalabilidad.
 
 ### Diagrama de la Arquitectura
 ```mermaid
