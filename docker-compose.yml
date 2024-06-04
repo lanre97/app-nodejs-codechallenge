@@ -31,8 +31,7 @@ services:
       - POSTGRESQL_MASTER_PORT_NUMBER=5432
       - ALLOW_EMPTY_PASSWORD=yes
     depends_on:
-      - postgres
-    
+      - postgres  
   zookeeper:
     image: confluentinc/cp-zookeeper:5.5.3
     environment:
@@ -76,7 +75,6 @@ services:
       - ./transaction-service:/usr/src/app
       - /usr/src/app/node_modules
       - /usr/src/app/dist
-
   antifraud-service:
     build: ./antifraud-service
     ports:

@@ -1,82 +1,129 @@
-# Yape Code Challenge :rocket:
+# Proyecto Yape Code Challenge
 
-Our code challenge will let you marvel us with your Jedi coding skills :smile:. 
+## Introducción
+Este proyecto implementa un sistema de manejo de transacciones financieras con una arquitectura de microservicios utilizando Docker, PostgreSQL, Kafka, y Node.js. El sistema asegura que cada transacción sea validada por un microservicio de antifraude antes de actualizar su estado. Se utiliza GraphQL para exponer una interfaz API consistente y flexible, permitiendo la creación y consulta de transacciones de manera eficiente.
 
-Don't forget that the proper way to submit your work is to fork the repo and create a PR :wink: ... have fun !!
+## Arquitectura
+La arquitectura está dividida en varios servicios, incluyendo:
+- **transaction-service**: Microservicio para la creación y recuperación de transacciones.
+- **antifraud-service**: Microservicio para la validación de transacciones.
 
-- [Problem](#problem)
-- [Tech Stack](#tech_stack)
-- [Send us your challenge](#send_us_your_challenge)
+Cada uno de estos servicios se comunica a través de Kafka, lo que permite un procesamiento eficiente y desacoplado de los eventos de transacciones. Los servicios exponen endpoints GraphQL para interactuar con ellos. Además, se implementa una configuración de base de datos PostgreSQL con replicación, donde una base de datos actúa como principal para operaciones de escritura y la otra como réplica para operaciones de lectura, asegurando así alta disponibilidad y escalabilidad.
 
-# Problem
-
-Every time a financial transaction is created it must be validated by our anti-fraud microservice and then the same service sends a message back to update the transaction status.
-For now, we have only three transaction statuses:
-
-<ol>
-  <li>pending</li>
-  <li>approved</li>
-  <li>rejected</li>  
-</ol>
-
-Every transaction with a value greater than 1000 should be rejected.
-
+### Diagrama de la Arquitectura
 ```mermaid
-  flowchart LR
-    Transaction -- Save Transaction with pending Status --> transactionDatabase[(Database)]
-    Transaction --Send transaction Created event--> Anti-Fraud
-    Anti-Fraud -- Send transaction Status Approved event--> Transaction
-    Anti-Fraud -- Send transaction Status Rejected event--> Transaction
-    Transaction -- Update transaction Status event--> transactionDatabase[(Database)]
+graph LR
+  client[Client] -- HTTP/GQL --> ts[Transaction Service GraphQL]
+  ts -- Kafka --> afs[Anti-Fraud Service]
+  afs -- Kafka --> ts
+  ts -- PostgreSQL(w) --> db[(Database Master)]
+  db -.-> afs
+  db -.-> rdb[(Database Replica)]
+  rdb -.-> ts
 ```
+Este diagrama muestra cómo los servicios interactúan a través de Kafka y cómo el estado de las transacciones se almacena y se recupera de PostgreSQL.
 
-# Tech Stack
+## Configuración del Entorno
 
-<ol>
-  <li>Node. You can use any framework you want (i.e. Nestjs with an ORM like TypeOrm or Prisma) </li>
-  <li>Any database</li>
-  <li>Kafka</li>    
-</ol>
+### Pre-requisitos
+- Docker
+- Docker Compose
+- Node.js
 
-We do provide a `Dockerfile` to help you get started with a dev environment.
+### Instrucciones de Configuración
+1. **Construir y ejecutar los servicios con Docker Compose**
+   ```bash
+   docker-compose up --build
+   ```
+   Este comando construirá y levantará todos los servicios definidos en `docker-compose.yml`, incluidos los servicios de base de datos, Kafka y los microservicios.
 
-You must have two resources:
+2. **Verificar que los servicios están funcionando**
+   Acceder a `http://localhost:3031/graphql` para visualizar la interfaz de consulta de GraphQL donde puedes ver la documentación y generar consultas.
 
-1. Resource to create a transaction that must containt:
+## Uso del Sistema con GraphQL
 
-```json
-{
-  "accountExternalIdDebit": "Guid",
-  "accountExternalIdCredit": "Guid",
-  "tranferTypeId": 1,
-  "value": 120
+### Crear una Transacción
+Utiliza una mutación GraphQL para crear una nueva transacción financiera. Aquí tienes un ejemplo de cómo enviar la mutación:
+```graphql
+mutation {
+  createTransaction(
+    createTransactionInput: {
+      accountExternalIdDebit: "470d3318-e8ad-4668-bb5d-c18e9c48f521",
+      accountExternalIdCredit: "7c032778-cdfc-4b4c-b354-67cd93c79468",
+      transferenceTypeId: 2,
+      value: 1000
+    }
+  ) {
+    transactionExternalId
+    transactionStatus
+    transferenceTypeId
+    accountExternalIdDebit
+    accountExternalIdCredit
+    value
+    createdAt
+  }
 }
 ```
 
-2. Resource to retrieve a transaction
-
+**Ejemplo de respuesta:**
 ```json
 {
-  "transactionExternalId": "Guid",
-  "transactionType": {
-    "name": ""
-  },
-  "transactionStatus": {
-    "name": ""
-  },
-  "value": 120,
-  "createdAt": "Date"
+  "data": {
+    "createTransaction": {
+      "transactionExternalId": "898dd126-7665-4a45-90ae-df985ad2429b",
+      "transactionStatus": "pending",
+      "transferenceTypeId": 2,
+      "accountExternalIdDebit": "470d3318-e8ad-4668-bb5d-c18e9c48f521",
+      "accountExternalIdCredit": "7c032778-cdfc-4b4c-b354-67cd93c79468",
+      "value": 1000,
+      "createdAt": "2024-06-04T20:45:59.574Z"
+    }
+  }
 }
 ```
 
-## Optional
+### Recuperar una Transacción
+Para obtener detalles de una transacción específica mediante su ID, utiliza la siguiente consulta GraphQL:
+```graphql
+query {
+  findTransactionById (
+    transactionExternalId:"898dd126-7665-4a45-90ae-df985ad2429b"
+  ) {
+    transactionExternalId
+    transferenceType {
+      name
+    }
+    transactionStatus {
+      name
+    }
+    value
+    createdAt
+  }
+}
+```
 
-You can use any approach to store transaction data but you should consider that we may deal with high volume scenarios where we have a huge amount of writes and reads for the same data at the same time. How would you tackle this requirement?
+**Ejemplo de respuesta:**
+```json
+{
+  "data": {
+    "findTransactionById": {
+      "transactionExternalId": "898dd126-7665-4a45-90ae-df985ad2429b",
+      "transferenceType": {
+        "name": "Withdrawal"
+      },
+      "transactionStatus": {
+        "name": "approved"
+      },
+      "value": 1000,
+      "createdAt": "2024-06-04T20:45:59.574Z"
+    }
+  }
+}
+```
 
-You can use Graphql;
-
-# Send us your challenge
-
-When you finish your challenge, after forking a repository, you **must** open a pull request to our repository. There are no limitations to the implementation, you can follow the programming paradigm, modularization, and style that you feel is the most appropriate solution.
-
-If you have any questions, please let us know.
+## Testing
+Para ejecutar los tests del `antifraud-service`:
+```bash
+docker-compose exec antifraud-service yarn test
+```
+Este comando ejecuta todos los tests definidos en el servicio de antifraude.
