@@ -13,13 +13,13 @@ Cada uno de estos servicios se comunica a través de Kafka. Los el servicio de t
 ### Diagrama de la Arquitectura
 ```mermaid
 graph LR
-  client[Client] -- HTTP/GQL --> ts[Transaction Service GraphQL]
-  ts -- Kafka --> afs[Anti-Fraud Service]
-  afs -- Kafka --> ts
+  client[Client] -- HTTP/GQL --> ts[Transaction Service]
   ts -- PostgreSQL(w) --> db[(Database Master)]
-  db -.-> afs
   db -.-> rdb[(Database Replica)]
-  rdb -.-> ts
+  rdb --PostgreSQL(r)--> ts
+  ts--Kafka(transaction.created)-->afs[Anti-Fraud Service]
+  afs -- Kafka(transaction.approved) --> ts
+  afs -- Kafka(transaction.rejected) --> ts
 ```
 Este diagrama muestra cómo los servicios interactúan a través de Kafka y cómo el estado de las transacciones se almacena y se recupera de PostgreSQL.
 
